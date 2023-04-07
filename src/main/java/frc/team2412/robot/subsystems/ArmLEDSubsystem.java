@@ -11,85 +11,98 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.EnumSet;
 
 public class ArmLEDSubsystem extends SubsystemBase {
 
 	// CONSTANTS
 
-	// time out durations (seconds)
-	private static final long CONNECT_TIMEOUT_DURATION = 15;
-	private static final long REQUEST_TIMEOUT_DURATION = 15;
+	// in seconds
+	public static final int REQUEST_TIMEOUT_DURATION = 15;
+	public static final int CONNECT_TIMEOUT_DURATION = 15;
 
-	private static final String IP = "10.24.12.12"; // TODO: get IP
+	public static final String IP = "10.24.12.12";
 
-	private static final int LED_ALPHA = 205;
-	private static final int EFFECT_SPEED = 50;
-	private static final int EFFECT_INTENSITY = 10;
+	// enums
+	public static enum ColorPresets {
+		RED("Red", "#ff0000"),
+		ORANGE("Orange", "#ffa500"),
+		YELLOW("Yellow", "#ffff00"),
+		GREEN("Green", "#00ff00"),
+		BLUE("Blue", "#00ffff"),
+		PURPLE("Purple", "##bd00ff"),
+		WHITE("White", "#e8e8e8"),
+		BLACK("Black", "#000000");
 
-	// enum selector
+		public final String displayName;
+		public final String color;
 
-	public static enum ColorSelector {
-		RED(255, 0, 0),
-		ORANGE(255, 165, 0),
-		YELLOW(255, 255, 0),
-		GREEN(0, 255, 0),
-		BLUE(0, 0, 255),
-		PURPLE(255, 0, 255),
-		WHITE(205, 205, 205),
-		BLACK(0, 0, 0);
-
-		public final int r;
-		public final int g;
-		public final int b;
-
-		ColorSelector(int r, int g, int b) {
-			this.r = r;
-			this.g = g;
-			this.b = b;
+		ColorPresets(String displayName, String color) {
+			this.displayName = displayName;
+			this.color = color;
 		}
 	}
 
-	public static enum LEDStateSelector {
-		OFF,
-		ALLIANCE_COLOR,
-		CUSTOM_COLOR;
+	public static enum LEDPresets {
+		RAINBOW("Rainbow", 63, 100, "#000000", "#000000", "#000000"),
+		FIRE("Fire", 66, 150, "#000000", "#000000", "#000000"),
+		ROBOTOTES("Robototes", 2, 150, "#ff0000", "#000000", "#000000"),
+		ROBOT_DISABLED("Robot Disabled", 1, 80, "#d6d6d6", "000000", "000000"),
+		AUTONOMOUS("Autonomous", 2, 150, "#66ff66", "#000000", "#000000"),
+		RED_ALLIANCE("Red Alliance", 2, 150, "#ff0000", "#000000", "#000000"),
+		BLUE_ALLIANCE("Blue Alliance", 2, 150, "#0000ff", "#000000", "#000000");
+
+		public final String displayName;
+		public final int fx; // index value from https://kno.wled.ge/features/effects/
+		public final int fxSpeed;
+
+		// HEX/DEC
+		public final String color1;
+		public final String color2;
+		public final String color3;
+
+		LEDPresets(
+				String displayName, int fx, int fxSpeed, String color1, String color2, String color3) {
+			this.displayName = displayName;
+
+			this.fx = fx;
+			this.fxSpeed = fxSpeed;
+
+			this.color1 = color1;
+			this.color2 = color2;
+			this.color3 = color3;
+		}
 	}
 
 	// VARIABLES
 
-	// led
-	private ColorSelector color1;
-	private ColorSelector color2;
-	private ColorSelector color3;
-	private int enabled;
-	private int effectIndex; // https://kno.wled.ge/features/effects/
-	private LEDStateSelector state;
+	public int enabled;
+	public boolean useCustom;
 
-	// http get request
+	public int currentEffect;
+	public int effectSpeed;
+	public String currentColor1;
+	public String currentColor2;
+	public String currentColor3;
+
+	// web request
+
 	private HttpClient client;
 	private HttpRequest request;
 
-	// logging
-	private SendableChooser<ColorSelector> color1Chooser = new SendableChooser<>();
-	private SendableChooser<ColorSelector> color2Chooser = new SendableChooser<>();
-	private SendableChooser<ColorSelector> color3Chooser = new SendableChooser<>();
-	private SendableChooser<InstantCommand> stateChooser = new SendableChooser<>();
+	// shuffleboard
 
-	private ShuffleboardTab armLEDTab;
+	private SendableChooser enableLEDChooser;
+	private SendableChooser presetChooser;
+	private SendableChooser color1Chooser;
+	private SendableChooser color2Chooser;
+	private SendableChooser color3Chooser;
 
 	// CONSTRUCTOR
 
 	public ArmLEDSubsystem() {
+		setLEDPreset(LEDPresets.ROBOT_DISABLED);
 
-		// led values
-		enabled = 1;
-		effectIndex = 0;
-		color1 = ColorSelector.RED;
-		color2 = ColorSelector.BLACK;
-		color3 = ColorSelector.RED;
-		state = LEDStateSelector.ALLIANCE_COLOR;
-
-		// http request
 		try {
 			client =
 					HttpClient.newBuilder()
@@ -106,174 +119,133 @@ public class ArmLEDSubsystem extends SubsystemBase {
 			System.out.println(e.getMessage());
 		}
 
-		// logging
-		color1Chooser.setDefaultOption("RED", ColorSelector.RED);
-		color1Chooser.addOption("ORANGE", ColorSelector.ORANGE);
-		color1Chooser.addOption("YELLOW", ColorSelector.YELLOW);
-		color1Chooser.addOption("GREEN", ColorSelector.GREEN);
-		color1Chooser.addOption("BLUE", ColorSelector.BLUE);
-		color1Chooser.addOption("PURPLE", ColorSelector.PURPLE);
-		color1Chooser.addOption("WHITE", ColorSelector.WHITE);
-		color1Chooser.addOption("BLACK", ColorSelector.BLACK);
+		// shuffleboard
 
-		color2Chooser.addOption("RED", ColorSelector.RED);
-		color2Chooser.addOption("ORANGE", ColorSelector.ORANGE);
-		color2Chooser.addOption("YELLOW", ColorSelector.YELLOW);
-		color2Chooser.addOption("GREEN", ColorSelector.GREEN);
-		color2Chooser.addOption("BLUE", ColorSelector.BLUE);
-		color2Chooser.addOption("PURPLE", ColorSelector.PURPLE);
-		color2Chooser.addOption("WHITE", ColorSelector.WHITE);
-		color2Chooser.setDefaultOption("BLACK", ColorSelector.BLACK);
+		ShuffleboardTab armLedTab = Shuffleboard.getTab("Arm LED");
 
-		color3Chooser.setDefaultOption("RED", ColorSelector.RED);
-		color3Chooser.addOption("ORANGE", ColorSelector.ORANGE);
-		color3Chooser.addOption("YELLOW", ColorSelector.YELLOW);
-		color3Chooser.addOption("GREEN", ColorSelector.GREEN);
-		color3Chooser.addOption("BLUE", ColorSelector.BLUE);
-		color3Chooser.addOption("PURPLE", ColorSelector.PURPLE);
-		color3Chooser.addOption("WHITE", ColorSelector.WHITE);
-		color3Chooser.addOption("BLACK", ColorSelector.BLACK);
+		// add options
+		// itereates through each enum and adds it to the preset chooser table.
+		EnumSet.allOf(LEDPresets.class)
+				.forEach(
+						ledPreset ->
+								presetChooser.addOption(
+										ledPreset.displayName, new InstantCommand(() -> setLEDPreset(ledPreset))));
+		EnumSet.allOf(ColorPresets.class)
+				.forEach(
+						colorPreset ->
+								color1Chooser.addOption(
+										colorPreset.displayName,
+										new InstantCommand(
+												() -> {
+													currentColor1 = colorPreset.color;
+													updateLED();
+												})));
+		EnumSet.allOf(ColorPresets.class)
+				.forEach(
+						colorPreset ->
+								color2Chooser.addOption(
+										colorPreset.displayName,
+										new InstantCommand(
+												() -> {
+													currentColor2 = colorPreset.color;
+													updateLED();
+												})));
+		EnumSet.allOf(ColorPresets.class)
+				.forEach(
+						colorPreset ->
+								color3Chooser.addOption(
+										colorPreset.displayName,
+										new InstantCommand(
+												() -> {
+													currentColor3 = colorPreset.color;
+													updateLED();
+												})));
 
-		stateChooser.addOption(
-				"Disable Arm LEDs",
-				new InstantCommand(
-						() -> {
-							enableLED(false);
-						}));
-		stateChooser.addOption(
-				"Use Alliance Color (RED/BLUE)",
-				new InstantCommand(
-						() -> {
-							enableLED(true);
-							setLEDAlliance();
-						}));
-		stateChooser.addOption(
-				"Use Custom Colors",
-				new InstantCommand(
-						() -> {
-							enableLED(true);
-							setLEDCustom();
-						}));
-		stateChooser.setDefaultOption(
-				"Use Alliance Color (RED/BLUE)",
-				new InstantCommand(
-						() -> {
-							enableLED(true);
-							setLEDAlliance();
-						}));
+		enableLEDChooser.setDefaultOption("Activated", new InstantCommand(() -> enableLED(true)));
+		enableLEDChooser.addOption("Deactivated", new InstantCommand(() -> enableLED(false)));
 
-		armLEDTab = Shuffleboard.getTab("Arm LED");
+		// add choosers to shuffleboard
+		armLedTab.add("LED Preset", presetChooser).withPosition(2, 0).withSize(2, 1);
+		armLedTab.add("Color 1", color1Chooser).withPosition(0, 0).withSize(2, 1);
+		armLedTab.add("Color 2", color2Chooser).withPosition(0, 1).withSize(2, 1);
+		armLedTab.add("Color 3", color3Chooser).withPosition(0, 2).withSize(2, 1);
+		armLedTab.add("LED enabled", enableLEDChooser).withPosition(4, 0).withSize(2, 1);
 
-		armLEDTab.add("Color 1", color1Chooser).withPosition(0, 0).withSize(2, 1);
-		armLEDTab.add("Color 2", color2Chooser).withPosition(2, 0).withSize(2, 1);
-		armLEDTab.add("Color 3", color3Chooser).withPosition(4, 0).withSize(2, 1);
-		armLEDTab.add("State", stateChooser).withPosition(6, 0).withSize(2, 1);
-
-		color1 = color1Chooser.getSelected();
-		color2 = color2Chooser.getSelected();
-		color3 = color3Chooser.getSelected();
-
-		setLEDAlliance();
+		// gulp
+		updateLED();
 	}
 
 	// METHODS
-
-	/** Called during autonomous to be green (color might be changed later?) */
-	public void setLEDAutonomous() {
-		color1 = ColorSelector.GREEN;
-		effectIndex = 0;
-
-		updateLED();
-	}
-
-	/** Called during Teleop to set LED to red or blue based off alliance. */
-	public void setLEDAlliance() {
-
-		if (DriverStation.getAlliance() == DriverStation.Alliance.Red) {
-			// red
-			color1 = ColorSelector.RED;
-
-		} else {
-			// blue
-			color1 = ColorSelector.BLUE;
-		}
-		effectIndex = 0;
-
-		updateLED();
-	}
-
-	/** Potentially called during Teleop after alliance selection to represent overall team colors */
-	public void setLEDCustom() {
-		effectIndex = 2;
-
-		color1 = color1Chooser.getSelected();
-		color2 = color2Chooser.getSelected();
-
-		updateLED();
-	}
-
-	/*
-	 * Updates the LED by sending an HTTP request
-	 */
-	public void updateLED() {
-		try {
-			request = getRequest();
-		} catch (Exception e) {
-			System.out.println("Failed to create Http Request");
-			System.out.println(e.getMessage());
-		}
-
-		try {
-			client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
-		} catch (Exception e) {
-			System.out.println("Failed to send http request");
-			System.out.println(e.getMessage());
-		}
-	}
 
 	/*
 	 * Enables/Disables the LED.
 	 * @param enable Enables if true, disables if false.
 	 */
-	public void enableLED(boolean enable) {
-		if (enable) {
+	public void enableLED(boolean activate) {
+		if (activate) {
 			enabled = 1;
-			return;
+		} else {
+			enabled = 0;
 		}
-		enabled = 0;
+	}
+	/*
+	 * Sets LED to autonomous mode (green)
+	 */
+	public void setLEDAutonomous() {
+		setLEDPreset(LEDPresets.AUTONOMOUS);
+	}
+
+	/** Called during Teleop to set LED to red or blue based off alliance. */
+	public void setLEDAlliance() {
+		if (DriverStation.getAlliance() == DriverStation.Alliance.Red) {
+			// red
+			setLEDPreset(LEDPresets.RED_ALLIANCE);
+
+		} else {
+			// blue
+			setLEDPreset(LEDPresets.BLUE_ALLIANCE);
+		}
+	}
+
+	/*
+	 * Sets the LED to a preset
+	 * @param preset The preset to set the led to
+	 */
+	public void setLEDPreset(LEDPresets preset) {
+		currentEffect = preset.fx;
+		effectSpeed = preset.fxSpeed;
+		currentColor1 = preset.color1;
+		currentColor2 = preset.color2;
+		currentColor3 = preset.color3;
 
 		updateLED();
 	}
 
 	public HttpRequest getRequest() {
-		String uri = getURI();
+		String uri =
+				"http://"
+						+ IP
+						+ "/win&T="
+						+ enabled
+						+ "&FX="
+						+ currentEffect
+						+ "&SX="
+						+ effectSpeed
+						+ "&CL="
+						+ currentColor1
+						+ "&CL2="
+						+ currentColor2
+						+ "&CL3="
+						+ currentColor3;
+
 		return HttpRequest.newBuilder()
 				.timeout(Duration.ofSeconds(REQUEST_TIMEOUT_DURATION))
-				.uri(URI.create(getURI()))
+				.uri(URI.create(uri))
 				.build();
 	}
 
-	// TODO: finish URI getter
-	public String getURI() {
-		return "http://"
-				+ IP
-				+ "/win&T="
-				+ enabled
-				+ "&A="
-				+ LED_ALPHA
-				+ "&R="
-				+ color1.r
-				+ "&G="
-				+ color1.g
-				+ "&B="
-				+ color1.b
-				+ "&R2="
-				+ color2.r
-				+ "&G2="
-				+ color2.g
-				+ "&B2="
-				+ color2.b
-				+ "&FX="
-				+ effectIndex;
+	public void updateLED() {
+		request = getRequest();
+		client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
 	}
 }
