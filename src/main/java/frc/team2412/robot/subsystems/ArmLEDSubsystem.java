@@ -23,6 +23,8 @@ public class ArmLEDSubsystem extends SubsystemBase {
 
 	public static final String IP = "10.24.12.12";
 
+
+    // enums
 	public static enum ColorPresets {
 		RED("Red", "#ff0000"),
 		ORANGE("Orange", "#ffa500"),
@@ -73,7 +75,7 @@ public class ArmLEDSubsystem extends SubsystemBase {
 		}
 	}
 
-	// NON-CONSTANTS
+	// VARIABLES
 
 	public int enabled;
 	public boolean useCustom;
@@ -84,8 +86,12 @@ public class ArmLEDSubsystem extends SubsystemBase {
 	public String currentColor2;
 	public String currentColor3;
 
+    // web request
+
 	private HttpClient client;
 	private HttpRequest request;
+
+    // shuffleboard
 
 	private SendableChooser enableLEDChooser;
 	private SendableChooser presetChooser;
@@ -114,8 +120,12 @@ public class ArmLEDSubsystem extends SubsystemBase {
 			System.out.println(e.getMessage());
 		}
 
-        // shuffleboard hooligans
 
+        // shuffleboard 
+
+        ShuffleboardTab armLedTab = Shuffleboard.getTab("Arm LED");
+
+        // add options
 		// itereates through each enum and adds it to the preset chooser table.
 		EnumSet.allOf(LEDPresets.class)
 				.forEach(
@@ -156,15 +166,14 @@ public class ArmLEDSubsystem extends SubsystemBase {
 		enableLEDChooser.setDefaultOption("Activated", new InstantCommand(() -> enableLED(true)));
 		enableLEDChooser.addOption("Deactivated", new InstantCommand(() -> enableLED(false)));
 
-		ShuffleboardTab armLedTab = Shuffleboard.getTab("Arm LED");
-
+        // add choosers to shuffleboard
 		armLedTab.add("LED Preset", presetChooser).withPosition(2, 0).withSize(2, 1);
-
 		armLedTab.add("Color 1", color1Chooser).withPosition(0, 0).withSize(2, 1);
 		armLedTab.add("Color 2", color2Chooser).withPosition(0, 1).withSize(2, 1);
 		armLedTab.add("Color 3", color3Chooser).withPosition(0, 2).withSize(2, 1);
 		armLedTab.add("LED enabled", enableLEDChooser).withPosition(4, 0).withSize(2, 1);
 
+        // gulp
 		updateLED();
 	}
 
