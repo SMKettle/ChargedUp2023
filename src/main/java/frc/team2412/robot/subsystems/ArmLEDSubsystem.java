@@ -4,6 +4,7 @@ import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
+import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import java.net.URI;
@@ -92,17 +93,17 @@ public class ArmLEDSubsystem extends SubsystemBase {
 
 	// shuffleboard
 
-	private SendableChooser enableLEDChooser;
-	private SendableChooser presetChooser;
-	private SendableChooser color1Chooser;
-	private SendableChooser color2Chooser;
-	private SendableChooser color3Chooser;
+	private SendableChooser<Boolean> enableLEDChooser = new SendableChooser<Boolean>();
+	private SendableChooser<LEDPresets> presetChooser = new SendableChooser<LEDPresets>();
+	private SendableChooser<String> color1Chooser = new SendableChooser<String>();
+	private SendableChooser<String> color2Chooser = new SendableChooser<String>();
+	private SendableChooser<String> color3Chooser = new SendableChooser<String>();
+
+	
 
 	// CONSTRUCTOR
 
 	public ArmLEDSubsystem() {
-		setLEDPreset(LEDPresets.ROBOT_DISABLED);
-
 		try {
 			client =
 					HttpClient.newBuilder()
@@ -119,6 +120,8 @@ public class ArmLEDSubsystem extends SubsystemBase {
 			System.out.println(e.getMessage());
 		}
 
+		setLEDPreset(LEDPresets.ROBOT_DISABLED);
+
 		// shuffleboard
 
 		ShuffleboardTab armLedTab = Shuffleboard.getTab("Arm LED");
@@ -129,40 +132,28 @@ public class ArmLEDSubsystem extends SubsystemBase {
 				.forEach(
 						ledPreset ->
 								presetChooser.addOption(
-										ledPreset.displayName, new InstantCommand(() -> setLEDPreset(ledPreset))));
+										ledPreset.displayName, ledPreset));
 		EnumSet.allOf(ColorPresets.class)
 				.forEach(
 						colorPreset ->
 								color1Chooser.addOption(
 										colorPreset.displayName,
-										new InstantCommand(
-												() -> {
-													currentColor1 = colorPreset.color;
-													updateLED();
-												})));
+										colorPreset.color));
 		EnumSet.allOf(ColorPresets.class)
 				.forEach(
 						colorPreset ->
 								color2Chooser.addOption(
 										colorPreset.displayName,
-										new InstantCommand(
-												() -> {
-													currentColor2 = colorPreset.color;
-													updateLED();
-												})));
+										colorPreset.color));
 		EnumSet.allOf(ColorPresets.class)
 				.forEach(
 						colorPreset ->
 								color3Chooser.addOption(
 										colorPreset.displayName,
-										new InstantCommand(
-												() -> {
-													currentColor3 = colorPreset.color;
-													updateLED();
-												})));
+										colorPreset.color));
 
-		enableLEDChooser.setDefaultOption("Activated", new InstantCommand(() -> enableLED(true)));
-		enableLEDChooser.addOption("Deactivated", new InstantCommand(() -> enableLED(false)));
+		enableLEDChooser.setDefaultOption("Activated", true);
+		enableLEDChooser.addOption("Deactivated", false);
 
 		// add choosers to shuffleboard
 		armLedTab.add("LED Preset", presetChooser).withPosition(2, 0).withSize(2, 1);
