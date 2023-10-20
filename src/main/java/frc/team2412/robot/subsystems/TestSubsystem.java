@@ -57,8 +57,7 @@ public class TestSubsystem extends SubsystemBase {
     }
 
     public void setMotor(double speed) {
-        motor.setSpeed(speed)
-    }
+        motor.setSpeed(speed);    }
 
     public void periodic() {
         // constantly print the current angle
