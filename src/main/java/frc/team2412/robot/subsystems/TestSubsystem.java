@@ -25,7 +25,7 @@ public class TestSubsystem extends SubsystemBase {
         
         // Initialize Nessescary Variables
 
-        this.motor = new CANSparkmax(60, MotorType.kBrushless);
+        this.motor = new CANSparkMax(60, MotorType.kBrushless);
         this.motorEncoder = motor.getAbsoluteEncoder();
 
         // Configure Hardware
@@ -57,7 +57,8 @@ public class TestSubsystem extends SubsystemBase {
     }
 
     public void setMotor(double speed) {
-        motor.setSpeed(speed);    }
+        motor.set(speed);
+        }
 
     public void periodic() {
         // constantly print the current angle
