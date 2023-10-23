@@ -23,6 +23,8 @@ public class TestSubsystem extends SubsystemBase {
     //      Sets the value instance variables
     public TestSubsystem() {
         
+
+        // hi guys
         // Initialize Nessescary Variables
 
         this.motor = new CANSparkMax(60, MotorType.kBrushless);
