@@ -51,8 +51,42 @@ public class AutonomousChooser {
 				() -> AutonomousTrajectories.getAutoPathByName("ChargeScoreHighLeaveComCharge"));
 
 		autonomousModeChooser.addOption(
-				"FlatScoreHighLeaveComScoreHigh",
-				() -> AutonomousTrajectories.getAutoPathByName("FlatScoreHighLeaveComScoreHigh"));
+				"ChargeScoreHighCharge",
+				() -> AutonomousTrajectories.getAutoPathByName("ChargeScoreHighCharge"));
+
+		autonomousModeChooser.addOption(
+				"FlatScoreHighLeaveComScoreHighRed",
+				() -> AutonomousTrajectories.getAutoPathByName("FlatScoreHighLeaveComScoreHighRed"));
+
+		autonomousModeChooser.addOption(
+				"FlatScoreHighLeaveComScoreHighBlue",
+				() -> AutonomousTrajectories.getAutoPathByName("FlatScoreHighLeaveComScoreHighBlue"));
+
+		autonomousModeChooser.addOption(
+				"BumpScoreHighLeaveComScoreHighRed",
+				() -> AutonomousTrajectories.getAutoPathByName("BumpScoreHighLeaveComScoreHighRed"));
+
+		autonomousModeChooser.addOption(
+				"BumpScoreHighLeaveComScoreHighBlue",
+				() -> AutonomousTrajectories.getAutoPathByName("BumpScoreHighLeaveComScoreHighBlue"));
+
+		autonomousModeChooser.addOption(
+				"FlatScoreMidLeaveComScoreLowScoreLowBackwardsRed",
+				() ->
+						AutonomousTrajectories.getAutoPathByName(
+								"FlatScoreMidLeaveComScoreLowScoreLowBackwardsRed"));
+
+		autonomousModeChooser.addOption(
+				"FlatScoreMidLeaveComScoreLowScoreLowBackwardsBlue",
+				() ->
+						AutonomousTrajectories.getAutoPathByName(
+								"FlatScoreMidLeaveComScoreLowScoreLowBackwardsBlue"));
+
+		autonomousModeChooser.addOption(
+				"DONOTUSEFlatScoreMidLeaveComScoreLowScoreLowBackwardsInside",
+				() ->
+						AutonomousTrajectories.getAutoPathByName(
+								"FlatScoreMidLeaveComScoreLowScoreLowBackwardsInside"));
 
 		autonomousModeChooser.addOption(
 				"ChargeShootChargeShoot",

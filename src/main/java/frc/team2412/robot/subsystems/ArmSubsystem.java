@@ -21,6 +21,7 @@ import edu.wpi.first.networktables.GenericEntry;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.StringPublisher;
+import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.shuffleboard.BuiltInWidgets;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
@@ -38,7 +39,7 @@ public class ArmSubsystem extends SubsystemBase {
 		// Conversion
 
 		public static final float ARM_MOTOR_TO_SHOULDER_ENCODER_RATIO = 75;
-		public static final float WRIST_MOTOR_TO_WRIST_ENCODER_RATIO = 60.0f * 24.0f / 17.0f;
+		public static final float WRIST_MOTOR_TO_WRIST_ENCODER_RATIO = 60.0f * 24.0f / 16.0f;
 		public static final float ARM_ROTATIONS_TO_SHOULDER_ENCODER_RATIO = 4;
 		public static final double SHOULDER_ENCODER_TO_ARM_POSITION_RATIO = 4 / 1;
 		public static final double WRIST_ENCODER_TO_WRIST_POSITION_RATIO = 24 / 1;
@@ -83,7 +84,7 @@ public class ArmSubsystem extends SubsystemBase {
 		public static final float ARM_REVERSE_LIMIT = 2;
 		public static final float WRIST_FORWARD_LIMIT = 62;
 		public static final float WRIST_REVERSE_LIMIT = 2;
-		public static final float WRIST_ENCODER_OFFSET = -0.20f;
+		public static final float WRIST_ENCODER_OFFSET = -0.22f;
 
 		public static final double ARM_VELOCITY_TOLERANCE = 0.2;
 		public static final double WRIST_VELOCITY_TOLERANCE = 0.2;
@@ -118,11 +119,11 @@ public class ArmSubsystem extends SubsystemBase {
 		 * Scoring Wrist Angle
 		 */
 		public static enum PositionType {
-			UNKNOWN_POSITION(0.212, 0.08, 0.46, 0.46),
+			UNKNOWN_POSITION(0.212, 0.08, 0.46, 0.35),
 			ARM_LOW_POSITION(0.212, 0.08, 0.46, 0.35),
 			ARM_MIDDLE_POSITION(0.415, 0.08, 0.42, 0.5),
 			ARM_HIGH_POSITION(0.6546, 0.08, 0.465, 0.473),
-			ARM_SUBSTATION_POSITION(0.6, 0.08, 0.56, 0.56); // ?
+			ARM_SUBSTATION_POSITION(0.6, 0.08, 0.58, 0.58); // ?
 
 			public final double armAngle;
 			public final double retractedWristAngle;
@@ -155,6 +156,9 @@ public class ArmSubsystem extends SubsystemBase {
 	private DoubleSupplier armPosAdjustJoystick;
 	private DoubleSupplier wristPosAdjustJoystick;
 
+	// Button to toggle coast mode
+	private final DigitalInput toggleCoastButton;
+
 	// Hardware
 	private final CANSparkMax armMotor1;
 	private final CANSparkMax armMotor2;
@@ -171,6 +175,8 @@ public class ArmSubsystem extends SubsystemBase {
 	// Network Tables
 	NetworkTableInstance NTInstance;
 	NetworkTable NTDevices;
+
+	BooleanPublisher buttonPressedPublisher;
 
 	DoublePublisher shoulderPositionPublisher;
 	DoublePublisher elbowPositionPublisher;
@@ -211,6 +217,8 @@ public class ArmSubsystem extends SubsystemBase {
 	// CONSTRUCTOR
 
 	public ArmSubsystem() {
+		toggleCoastButton = new DigitalInput(ARM_COAST_TOGGLE_PORT);
+
 		armMotor1 = new CANSparkMax(ARM_MOTOR_1, MotorType.kBrushless);
 		armMotor2 = new CANSparkMax(ARM_MOTOR_2, MotorType.kBrushless);
 		wristMotor = new CANSparkMax(WRIST_MOTOR, MotorType.kBrushless);
@@ -236,6 +244,7 @@ public class ArmSubsystem extends SubsystemBase {
 
 		NTDevices = NTInstance.getTable("Devices");
 
+		buttonPressedPublisher = NTDevices.getBooleanTopic("Button pressed").publish();
 		armPositionPublisher = NTDevices.getStringTopic("Position").publish();
 		shoulderPositionPublisher = NTDevices.getDoubleTopic("Shoulder Pos").publish();
 		elbowPositionPublisher = NTDevices.getDoubleTopic("Elbow Pos").publish();
@@ -250,6 +259,7 @@ public class ArmSubsystem extends SubsystemBase {
 		wristGoalPublisher = NTDevices.getDoubleTopic("Wrist Goal").publish();
 		armManualOverridePublisher = NTDevices.getBooleanTopic("Manual Override").publish();
 
+		buttonPressedPublisher.set(isIdleModeTogglePressed());
 		shoulderPositionPublisher.set(0.0);
 		elbowPositionPublisher.set(0.0);
 		wristPositionPublisher.set(0.0);
@@ -296,6 +306,22 @@ public class ArmSubsystem extends SubsystemBase {
 		armMotor1.burnFlash();
 		armMotor2.burnFlash();
 		wristMotor.burnFlash();
+	}
+
+	public void setCoast() {
+		armMotor1.setIdleMode(CANSparkMax.IdleMode.kCoast);
+		armMotor2.setIdleMode(CANSparkMax.IdleMode.kCoast);
+		wristMotor.setIdleMode(CANSparkMax.IdleMode.kCoast);
+	}
+
+	public void setBrake() {
+		armMotor1.setIdleMode(CANSparkMax.IdleMode.kBrake);
+		armMotor2.setIdleMode(CANSparkMax.IdleMode.kBrake);
+		wristMotor.setIdleMode(CANSparkMax.IdleMode.kBrake);
+	}
+
+	public boolean isIdleModeTogglePressed() {
+		return toggleCoastButton.get();
 	}
 
 	public void setPresetAdjustJoysticks(
@@ -348,6 +374,14 @@ public class ArmSubsystem extends SubsystemBase {
 				MathUtil.clamp(MAX_WRIST_VELOCITY * percentOutput, MIN_PERCENT_OUTPUT, MAX_PERCENT_OUTPUT);
 		wristPID.setReference(
 				percentOutput, CANSparkMax.ControlType.kDutyCycle, 0); // calculateWristFeedforward());
+	}
+
+	public void resetToLow() {
+		setPosition(PositionType.ARM_LOW_POSITION);
+		setArmGoal(PositionType.ARM_LOW_POSITION.armAngle);
+		setWristGoal(PositionType.ARM_LOW_POSITION.retractedWristAngle);
+		updateArmMotorOutput();
+		updateWristMotorOutput();
 	}
 
 	/** Sets current position of the arm. Used for condition checking, nothing really else. */
@@ -515,6 +549,8 @@ public class ArmSubsystem extends SubsystemBase {
 		}
 
 		// Network Tables
+
+		buttonPressedPublisher.set(isIdleModeTogglePressed());
 
 		shoulderPositionPublisher.set(getShoulderPosition());
 		elbowPositionPublisher.set(getElbowPosition());
