@@ -5,6 +5,7 @@ import com.revrobotics.CANSparkMax;
 import com.revrobotics.SparkMaxAbsoluteEncoder;
 import com.revrobotics.CANSparkMaxLowLevel.MotorType;
 import com.revrobotics.CANSparkMax.IdleMode;
+import com.revrobotics.SparkMaxAbsoluteEncoder.Type;
 
 public class TestSubsystem extends SubsystemBase {
 
@@ -28,7 +29,7 @@ public class TestSubsystem extends SubsystemBase {
         // Initialize Nessescary Variables
 
         this.motor = new CANSparkMax(60, MotorType.kBrushless);
-        this.motorEncoder = motor.getAbsoluteEncoder();
+        this.motorEncoder = motor.getAbsoluteEncoder(Type.kDutyCycle);
 
         // Configure Hardware
         motor.setIdleMode(IdleMode.kBrake);
