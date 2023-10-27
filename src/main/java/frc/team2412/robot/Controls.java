@@ -24,6 +24,8 @@ import frc.team2412.robot.commands.intake.IntakeSetInCommand;
 import frc.team2412.robot.commands.intake.IntakeSetOutCommand;
 import frc.team2412.robot.commands.led.LEDPurpleCommand;
 import frc.team2412.robot.commands.led.LEDYellowCommand;
+import frc.team2412.robot.commands.test.TestForwardCommand;
+import frc.team2412.robot.commands.test.TestBackwardCommand;
 import frc.team2412.robot.subsystems.IntakeSubsystem.IntakeConstants.GamePieceType;
 import frc.team2412.robot.util.DriverAssist;
 
@@ -69,6 +71,11 @@ public class Controls {
 	public final Trigger ledPurple;
 	public final Trigger ledYellow;
 
+	// test
+
+	public final Trigger testForward;
+	public final Trigger testBackward;
+
 	private final Subsystems s;
 
 	public Controls(Subsystems s) {
@@ -100,6 +107,10 @@ public class Controls {
 		ledPurple = codriveController.rightBumper();
 		ledYellow = codriveController.leftBumper();
 
+		testForward = codriveController.leftTrigger();
+		testBackward = codriveController.rightTrigger();
+
+
 		if (Subsystems.SubsystemConstants.DRIVEBASE_ENABLED) {
 			bindDrivebaseControls();
 		}
@@ -112,6 +123,8 @@ public class Controls {
 		if (Subsystems.SubsystemConstants.ARM_ENABLED) {
 			bindArmControls();
 		}
+
+		bindTestControls();
 	}
 
 	public void bindDrivebaseControls() {
@@ -198,5 +211,13 @@ public class Controls {
 	public void bindLEDControls() {
 		ledPurple.onTrue(new LEDPurpleCommand(s.ledSubsystem));
 		ledYellow.onTrue(new LEDYellowCommand(s.ledSubsystem));
+	}
+
+
+	public void bindTestControls() {
+		// here you bind controls !
+
+		testForward.onTrue(new TestForwardCommand(s.testSubsystem));
+		testBackward.onTrue(new TestBackwardCommand(s.testSubsystem));
 	}
 }
